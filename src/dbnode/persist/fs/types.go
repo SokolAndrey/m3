@@ -677,3 +677,5 @@ type IndexClaimsManager interface {
 		blockStart time.Time,
 	) (int, error)
 }
+
+type DeleteFilesFn func(files []string) error
