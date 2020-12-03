@@ -58,4 +58,4 @@ docker run -p 7201:7201 -p 7203:7203 --name m3db -v $(pwd)/m3db_data:/var/lib/m3
 When running the command above on Docker for Mac, Docker for Windows, and some Linux distributions you may see errors about settings not being at recommended values. Unless you intend to run M3DB in production on macOS or Windows, you can ignore these warnings.
 {{% /notice %}}
 
-{{% fileinclude file="quickstart/common-steps.md" %}}
+{{< fileinclude file="quickstart-common-steps.md" >}}
