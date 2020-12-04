@@ -74,7 +74,7 @@ func (r *indexBootstrapResult) Add(blocks IndexBlockByVolumeType, unfulfilled Sh
 func (r *indexBootstrapResult) NumSeries() int {
 	var size int64
 	for _, blockByVolumeType := range r.results {
-		for _, b := range blockByVolumeType.data {
+		for _, b := range blockByVolumeType.Iter() {
 			for _, s := range b.segments {
 				size += s.Segment().Size()
 			}
@@ -209,12 +209,12 @@ func (r IndexResults) MarkFulfilled(
 		r[blockStartNanos] = blocks
 	}
 
-	block, exists := blocks.data[indexVolumeType]
+	block, exists := blocks.GetBlock(indexVolumeType)
 	if !exists {
 		block = NewIndexBlock(nil, nil)
-		blocks.data[indexVolumeType] = block
+		blocks.SetBlock(indexVolumeType, block)
 	}
-	blocks.data[indexVolumeType] = block.Merged(NewIndexBlock(nil, fulfilled))
+	blocks.SetBlock(indexVolumeType, block.Merged(NewIndexBlock(nil, fulfilled)))
 	return nil
 }
 
@@ -230,12 +230,12 @@ func MergedIndexBootstrapResult(i, j IndexBootstrapResult) IndexBootstrapResult 
 	}
 	sizeI, sizeJ := 0, 0
 	for _, ir := range i.IndexResults() {
-		for _, b := range ir.data {
+		for _, b := range ir.Iter() {
 			sizeI += len(b.Segments())
 		}
 	}
 	for _, ir := range j.IndexResults() {
-		for _, b := range ir.data {
+		for _, b := range ir.Iter() {
 			sizeJ += len(b.Segments())
 		}
 	}
@@ -288,45 +288,50 @@ func (b IndexBlock) Merged(other IndexBlock) IndexBlock {
 	return r
 }
 
+type indexBlockByVolumeType struct {
+	blockStart time.Time
+	data       map[persist.IndexVolumeType]IndexBlock
+}
+
 // NewIndexBlockByVolumeType returns a new bootstrap index blocks by volume type result.
 func NewIndexBlockByVolumeType(blockStart time.Time) IndexBlockByVolumeType {
-	return IndexBlockByVolumeType{
+	return &indexBlockByVolumeType{
 		blockStart: blockStart,
 		data:       make(map[persist.IndexVolumeType]IndexBlock),
 	}
 }
 
 // BlockStart returns the block start.
-func (b IndexBlockByVolumeType) BlockStart() time.Time {
+func (b *indexBlockByVolumeType) BlockStart() time.Time {
 	return b.blockStart
 }
 
 // GetBlock returns an IndexBlock for volumeType.
-func (b IndexBlockByVolumeType) GetBlock(volumeType persist.IndexVolumeType) (IndexBlock, bool) {
+func (b *indexBlockByVolumeType) GetBlock(volumeType persist.IndexVolumeType) (IndexBlock, bool) {
 	block, ok := b.data[volumeType]
 	return block, ok
 }
 
 // SetBlock sets an IndexBlock for volumeType.
-func (b IndexBlockByVolumeType) SetBlock(volumeType persist.IndexVolumeType, block IndexBlock) {
+func (b *indexBlockByVolumeType) SetBlock(volumeType persist.IndexVolumeType, block IndexBlock) {
 	b.data[volumeType] = block
 }
 
 // DeleteBlock deletes an IndexBlock for volumeType.
-func (b IndexBlockByVolumeType) DeleteBlock(volumeType persist.IndexVolumeType) {
+func (b *indexBlockByVolumeType) DeleteBlock(volumeType persist.IndexVolumeType) {
 	delete(b.data, volumeType)
 }
 
 // Iter returns the underlying iterable map data.
-func (b IndexBlockByVolumeType) Iter() map[persist.IndexVolumeType]IndexBlock {
+func (b *indexBlockByVolumeType) Iter() map[persist.IndexVolumeType]IndexBlock {
 	return b.data
 }
 
 // Merged returns a new merged index block by volume type.
 // It merges the underlying index blocks together by index volume type.
-func (b IndexBlockByVolumeType) Merged(other IndexBlockByVolumeType) IndexBlockByVolumeType {
+func (b *indexBlockByVolumeType) Merged(other IndexBlockByVolumeType) IndexBlockByVolumeType {
 	r := b
-	for volumeType, otherBlock := range other.data {
+	for volumeType, otherBlock := range other.Iter() {
 		existing, ok := r.data[volumeType]
 		if !ok {
 			r.data[volumeType] = otherBlock

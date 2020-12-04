@@ -69,9 +69,13 @@ type IndexBuilder struct {
 }
 
 // IndexBlockByVolumeType contains the bootstrap data structures for an index block by volume type.
-type IndexBlockByVolumeType struct {
-	blockStart time.Time
-	data       map[persist.IndexVolumeType]IndexBlock
+type IndexBlockByVolumeType interface {
+	BlockStart() time.Time
+	GetBlock(volumeType persist.IndexVolumeType) (IndexBlock, bool)
+	SetBlock(volumeType persist.IndexVolumeType, block IndexBlock)
+	DeleteBlock(volumeType persist.IndexVolumeType)
+	Iter() map[persist.IndexVolumeType]IndexBlock
+	Merged(other IndexBlockByVolumeType) IndexBlockByVolumeType
 }
 
 // IndexBlock is an index block for a index volume type.
